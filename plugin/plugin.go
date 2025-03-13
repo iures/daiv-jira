@@ -10,9 +10,10 @@ import (
 )
 
 type JiraPlugin struct {
-	client *jira.JiraClient
-	config *jira.JiraConfig
-	user   *extJira.User
+	client    *jira.JiraClient
+	config    *jira.JiraConfig
+	user      *extJira.User
+	formatter jira.ReportFormatter
 }
 
 // New creates a new instance of the plugin
@@ -61,6 +62,14 @@ func (p *JiraPlugin) Manifest() *plug.PluginManifest {
 				Required:    true,
 				Secret:      false,
 			},
+			{
+				Type:        plug.ConfigTypeString,
+				Key:         "jira.format",
+				Name:        "Report Format",
+				Description: "The format for the activity report (xml, json, or markdown)",
+				Required:    false,
+				Secret:      false,
+			},
 		},
 	}
 }
@@ -87,25 +96,51 @@ func (p *JiraPlugin) Initialize(settings map[string]interface{}) error {
 		return fmt.Errorf("failed to get Jira user: %w", err)
 	}
 
+	// Set the formatter based on configuration
+	format, ok := settings["jira.format"].(string)
+	if !ok || format == "" {
+		format = "JSON" // Default to JSON if not specified
+	}
+
+	switch format {
+	case "json":
+		p.formatter = jira.NewJSONFormatter()
+	case "markdown":
+		p.formatter = jira.NewMarkdownFormatter()
+	case "xml":
+		p.formatter = jira.NewXMLFormatter()
+	default:
+		p.formatter = jira.NewJSONFormatter()
+	}
+
 	return nil
 }
 
 // Shutdown performs cleanup when the plugin is being disabled/removed
 func (p *JiraPlugin) Shutdown() error {
-	// TODO: Clean up any resources
+	// No resources to clean up
 	return nil
 }
 
 // GetStandupContext implements the StandupPlugin interface
 func (p *JiraPlugin) GetStandupContext(timeRange plug.TimeRange) (plug.StandupContext, error) {
-	// Delegate to the standup context implementation
-	report, err := p.client.GetActivityReport(timeRange)
+	// Create service
+	service := jira.NewActivityService(p.client)
+	
+	// Get activity report from service
+	report, err := service.GetActivityReport(timeRange, p.user)
 	if err != nil {
 		return plug.StandupContext{}, fmt.Errorf("failed to get activity report: %w", err)
+	}
+	
+	// Format the report using the configured formatter
+	content, err := p.formatter.Format(report)
+	if err != nil {
+		return plug.StandupContext{}, fmt.Errorf("failed to format activity report: %w", err)
 	}
 
 	return plug.StandupContext{
 		PluginName: p.Name(),
-		Content:    report,
+		Content:    content,
 	}, nil
 }

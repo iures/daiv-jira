@@ -48,20 +48,6 @@ func (j *JiraClient) GetSelf() (*extJira.User, error) {
 	return user, nil
 }
 
-func (j *JiraClient) GetActivityReport(timeRange plugin.TimeRange) (string, error) {
-	report := NewJiraReport()
-	report.TimeRange = timeRange
-	report.User = j.user
-
-	issues, err := j.fetchUpdatedIssues(timeRange)
-	if err != nil {
-		return "", err
-	}
-
-	report.Issues = issues
-	return report.Render()
-}
-
 func (j *JiraClient) fetchUpdatedIssues(timeRange plugin.TimeRange) ([]extJira.Issue, error) {
 	fromTime := timeRange.Start.Format("2006-01-02")
 	toTime := timeRange.End.Format("2006-01-02")
