@@ -1,6 +1,7 @@
 package jira
 
 import (
+	"fmt"
 	"time"
 
 	extJira "github.com/andygrunwald/go-jira"
@@ -9,45 +10,41 @@ import (
 
 // ActivityService handles the processing of Jira data into domain models
 type ActivityService struct {
-	client *JiraClient
+	repository JiraRepository
 }
 
 // NewActivityService creates a new activity service
-func NewActivityService(client *JiraClient) *ActivityService {
+func NewActivityService(repository JiraRepository) *ActivityService {
 	return &ActivityService{
-		client: client,
+		repository: repository,
 	}
 }
 
 // GetActivityReport retrieves and processes Jira activity data for the given time range
-func (s *ActivityService) GetActivityReport(pluginTimeRange plugin.TimeRange, user *extJira.User) (*ActivityReport, error) {
+func (s *ActivityService) GetActivityReport(pluginTimeRange plugin.TimeRange) (*ActivityReport, error) {
 	// Convert plugin.TimeRange to our domain TimeRange
 	timeRange := TimeRange{
 		Start: pluginTimeRange.Start,
 		End:   pluginTimeRange.End,
 	}
 
-	// Convert external User to our domain User
-	domainUser := User{
-		AccountID:   user.AccountID,
-		DisplayName: user.DisplayName,
-		Email:       user.EmailAddress,
-	}
-
-	// Fetch issues from Jira
-	issues, err := s.client.fetchUpdatedIssues(pluginTimeRange)
+	// Get the current user
+	user, err := s.repository.GetUser()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get user: %w", err)
 	}
 
-	// Process issues into domain model
-	domainIssues := s.processIssues(issues, timeRange, domainUser)
+	// Get issues for the user and time range
+	issues, err := s.repository.GetIssues(timeRange, user.AccountID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get issues: %w", err)
+	}
 
 	// Create and return the activity report
 	return &ActivityReport{
 		TimeRange: timeRange,
-		User:      domainUser,
-		Issues:    domainIssues,
+		User:      *user,
+		Issues:    issues,
 	}, nil
 }
 

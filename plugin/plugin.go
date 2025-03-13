@@ -5,14 +5,13 @@ import (
 	"daiv-jira/plugin/jira"
 	"fmt"
 
-	extJira "github.com/andygrunwald/go-jira"
 	plug "github.com/iures/daivplug"
 )
 
 type JiraPlugin struct {
 	client    *jira.JiraClient
 	config    *jira.JiraConfig
-	user      *extJira.User
+	service   *jira.ActivityService
 	formatter jira.ReportFormatter
 }
 
@@ -90,16 +89,14 @@ func (p *JiraPlugin) Initialize(settings map[string]interface{}) error {
 
 	p.client = client
 	p.config = config
-	p.user, err = p.client.GetSelf()
-
-	if err != nil {
-		return fmt.Errorf("failed to get Jira user: %w", err)
-	}
+	
+	// Create the service
+	p.service = jira.NewActivityService(client.GetRepository())
 
 	// Set the formatter based on configuration
 	format, ok := settings["jira.format"].(string)
 	if !ok || format == "" {
-		format = "JSON" // Default to JSON if not specified
+		format = "json" // Default to JSON if not specified
 	}
 
 	switch format {
@@ -124,23 +121,22 @@ func (p *JiraPlugin) Shutdown() error {
 
 // GetStandupContext implements the StandupPlugin interface
 func (p *JiraPlugin) GetStandupContext(timeRange plug.TimeRange) (plug.StandupContext, error) {
-	// Create service
-	service := jira.NewActivityService(p.client)
-	
 	// Get activity report from service
-	report, err := service.GetActivityReport(timeRange, p.user)
+	report, err := p.service.GetActivityReport(timeRange)
 	if err != nil {
 		return plug.StandupContext{}, fmt.Errorf("failed to get activity report: %w", err)
 	}
 	
 	// Format the report using the configured formatter
-	content, err := p.formatter.Format(report)
+	formattedContent, err := p.formatter.Format(report)
 	if err != nil {
 		return plug.StandupContext{}, fmt.Errorf("failed to format activity report: %w", err)
 	}
 
+	// Note: We're only using the content here, but in a more advanced implementation
+	// we could use the content type information for additional processing
 	return plug.StandupContext{
 		PluginName: p.Name(),
-		Content:    content,
+		Content:    formattedContent.Content,
 	}, nil
 }

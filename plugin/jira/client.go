@@ -14,12 +14,14 @@ type JiraConfig struct {
 	Project  string
 }
 
+// JiraClient provides a client for interacting with Jira
 type JiraClient struct {
-	client *extJira.Client
-	config *JiraConfig
-	user   *extJira.User
+	client     *extJira.Client
+	config     *JiraConfig
+	repository JiraRepository
 }
 
+// NewJiraClient creates a new JiraClient
 func NewJiraClient(config *JiraConfig) (*JiraClient, error) {
 	tp := extJira.BasicAuthTransport{
 		Username: config.Username,
@@ -31,10 +33,21 @@ func NewJiraClient(config *JiraConfig) (*JiraClient, error) {
 		return nil, err
 	}
 
-	return &JiraClient{
+	jiraClient := &JiraClient{
 		client: client,
 		config: config,
-	}, nil
+	}
+
+	// Create the repository
+	repository := NewJiraAPIRepository(client, config)
+	jiraClient.repository = repository
+
+	return jiraClient, nil
+}
+
+// GetRepository returns the Jira repository
+func (j *JiraClient) GetRepository() JiraRepository {
+	return j.repository
 }
 
 func (j *JiraClient) GetSelf() (*extJira.User, error) {
@@ -42,8 +55,6 @@ func (j *JiraClient) GetSelf() (*extJira.User, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	j.user = user
 
 	return user, nil
 }

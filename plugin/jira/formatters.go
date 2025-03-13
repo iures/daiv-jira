@@ -8,9 +8,16 @@ import (
 	"time"
 )
 
+// FormattedContent represents formatted content with its content type
+type FormattedContent struct {
+	ContentType string // MIME type of the content
+	Content     string // The formatted content
+}
+
 // ReportFormatter is an interface for formatting activity reports
 type ReportFormatter interface {
-	Format(report *ActivityReport) (string, error)
+	Format(report *ActivityReport) (*FormattedContent, error)
+	Name() string // Returns the name of the formatter
 }
 
 // XMLFormatter formats activity reports as XML
@@ -21,10 +28,18 @@ func NewXMLFormatter() *XMLFormatter {
 	return &XMLFormatter{}
 }
 
+// Name returns the name of the formatter
+func (f *XMLFormatter) Name() string {
+	return "xml"
+}
+
 // Format formats an activity report as XML
-func (f *XMLFormatter) Format(report *ActivityReport) (string, error) {
+func (f *XMLFormatter) Format(report *ActivityReport) (*FormattedContent, error) {
 	if len(report.Issues) == 0 {
-		return "", nil
+		return &FormattedContent{
+			ContentType: "application/xml",
+			Content:     "<jira_report></jira_report>",
+		}, nil
 	}
 
 	xmlReport := jiraXMLReport{
@@ -68,11 +83,14 @@ func (f *XMLFormatter) Format(report *ActivityReport) (string, error) {
 	// Marshal to XML with proper indentation
 	output, err := xml.MarshalIndent(xmlReport, "", "  ")
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal XML: %w", err)
+		return nil, fmt.Errorf("failed to marshal XML: %w", err)
 	}
 
 	// Add XML header and return
-	return xml.Header + string(output), nil
+	return &FormattedContent{
+		ContentType: "application/xml",
+		Content:     xml.Header + string(output),
+	}, nil
 }
 
 // JSONFormatter formats activity reports as JSON
@@ -83,10 +101,18 @@ func NewJSONFormatter() *JSONFormatter {
 	return &JSONFormatter{}
 }
 
+// Name returns the name of the formatter
+func (f *JSONFormatter) Name() string {
+	return "json"
+}
+
 // Format formats an activity report as JSON
-func (f *JSONFormatter) Format(report *ActivityReport) (string, error) {
+func (f *JSONFormatter) Format(report *ActivityReport) (*FormattedContent, error) {
 	if len(report.Issues) == 0 {
-		return "", nil
+		return &FormattedContent{
+			ContentType: "application/json",
+			Content:     "{}",
+		}, nil
 	}
 
 	// Create a JSON-friendly structure
@@ -164,10 +190,13 @@ func (f *JSONFormatter) Format(report *ActivityReport) (string, error) {
 	// Marshal to JSON with proper indentation
 	output, err := json.MarshalIndent(jReport, "", "  ")
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal JSON: %w", err)
+		return nil, fmt.Errorf("failed to marshal JSON: %w", err)
 	}
 
-	return string(output), nil
+	return &FormattedContent{
+		ContentType: "application/json",
+		Content:     string(output),
+	}, nil
 }
 
 // MarkdownFormatter formats activity reports as Markdown
@@ -178,10 +207,18 @@ func NewMarkdownFormatter() *MarkdownFormatter {
 	return &MarkdownFormatter{}
 }
 
+// Name returns the name of the formatter
+func (f *MarkdownFormatter) Name() string {
+	return "markdown"
+}
+
 // Format formats an activity report as Markdown
-func (f *MarkdownFormatter) Format(report *ActivityReport) (string, error) {
+func (f *MarkdownFormatter) Format(report *ActivityReport) (*FormattedContent, error) {
 	if len(report.Issues) == 0 {
-		return "No activity found for the specified time range.", nil
+		return &FormattedContent{
+			ContentType: "text/markdown",
+			Content:     "No activity found for the specified time range.",
+		}, nil
 	}
 
 	var sb strings.Builder
@@ -240,7 +277,10 @@ func (f *MarkdownFormatter) Format(report *ActivityReport) (string, error) {
 		}
 	}
 
-	return sb.String(), nil
+	return &FormattedContent{
+		ContentType: "text/markdown",
+		Content:     sb.String(),
+	}, nil
 }
 
 // XML structures for proper marshaling
