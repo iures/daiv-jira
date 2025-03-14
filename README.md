@@ -9,6 +9,7 @@ A Jira integration plugin for the daiv CLI tool. This plugin allows you to gener
 - Supports multiple output formats (XML, JSON, Markdown, HTML)
 - Fully configurable JQL queries
 - Customizable field selection
+- Concurrent processing for improved performance
 
 ## Project Structure
 
@@ -118,4 +119,12 @@ The plugin follows a clean architecture approach with clear separation of concer
 5. **Plugin Layer**: Integrates with the daiv CLI tool
 
 This architecture makes the plugin flexible, maintainable, and testable.
+
+### Performance Optimizations
+
+The plugin includes several performance optimizations:
+
+1. **Concurrent Processing**: Issues, comments, and changelog entries are processed in parallel using goroutines, significantly improving performance for large result sets.
+2. **Smart Concurrency**: The plugin automatically switches between sequential and concurrent processing based on the size of the data to avoid overhead for small datasets.
+3. **Efficient Data Structures**: The plugin uses appropriate data structures to minimize memory usage and processing time.
 

@@ -2,8 +2,11 @@ package jira
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 	"time"
+
+	extJira "github.com/andygrunwald/go-jira"
 )
 
 // MockJiraRepository is a mock implementation of JiraRepository for testing
@@ -176,4 +179,109 @@ func TestActivityService_GetActivityReport(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestActivityService_ProcessIssuesConcurrently(t *testing.T) {
+	// Create a large number of test issues to demonstrate concurrency benefits
+	const numIssues = 50
+	testIssues := make([]extJira.Issue, numIssues)
+	
+	for i := 0; i < numIssues; i++ {
+		testIssues[i] = extJira.Issue{
+			Key: fmt.Sprintf("JIRA-%d", i+1),
+			Fields: &extJira.IssueFields{
+				Summary: fmt.Sprintf("Test Issue %d", i+1),
+				Status: &extJira.Status{
+					Name: "In Progress",
+				},
+				Comments: &extJira.Comments{
+					Comments: []*extJira.Comment{
+						{
+							Created: "2023-01-01T12:00:00.000-0700",
+							Author: extJira.User{
+								DisplayName: "Test User",
+							},
+							Body: fmt.Sprintf("Comment for issue %d", i+1),
+						},
+					},
+				},
+			},
+			Changelog: &extJira.Changelog{
+				Histories: []extJira.ChangelogHistory{
+					{
+						Created: "2023-01-01T10:00:00.000-0700",
+						Author: extJira.User{
+							AccountID:   "user123",
+							DisplayName: "Test User",
+						},
+						Items: []extJira.ChangelogItems{
+							{
+								Field:      "status",
+								FromString: "Open",
+								ToString:   "In Progress",
+							},
+						},
+					},
+				},
+			},
+		}
+	}
+	
+	// Create a mock repository
+	mockRepo := &MockJiraRepository{}
+	
+	// Create the service
+	service := NewActivityService(mockRepo)
+	
+	// Set up the test time range and user
+	timeRange := TimeRange{
+		Start: time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC),
+		End:   time.Date(2023, 1, 2, 0, 0, 0, 0, time.UTC),
+	}
+	user := User{
+		AccountID:   "user123",
+		DisplayName: "Test User",
+		Email:       "test@example.com",
+	}
+	
+	// Measure the time it takes to process issues concurrently
+	startConcurrent := time.Now()
+	resultConcurrent := service.processIssues(testIssues, timeRange, user)
+	durationConcurrent := time.Since(startConcurrent)
+	
+	// Verify the results
+	if len(resultConcurrent) != numIssues {
+		t.Errorf("Expected %d issues, got %d", numIssues, len(resultConcurrent))
+	}
+	
+	// Check a few issues to ensure they were processed correctly
+	for i := 0; i < numIssues; i++ {
+		found := false
+		expectedKey := fmt.Sprintf("JIRA-%d", i+1)
+		
+		for _, issue := range resultConcurrent {
+			if issue.Key == expectedKey {
+				found = true
+				
+				// Check that comments were processed
+				if len(issue.Comments) != 1 {
+					t.Errorf("Expected 1 comment for issue %s, got %d", issue.Key, len(issue.Comments))
+				}
+				
+				// Check that changes were processed
+				if len(issue.Changes) != 1 {
+					t.Errorf("Expected 1 change for issue %s, got %d", issue.Key, len(issue.Changes))
+				}
+				
+				break
+			}
+		}
+		
+		if !found {
+			t.Errorf("Issue with key %s not found in results", expectedKey)
+		}
+	}
+	
+	// Log the processing time for information
+	t.Logf("Processed %d issues concurrently in %v", numIssues, durationConcurrent)
 } 
