@@ -124,6 +124,35 @@ func TestJiraAPIRepository_GetIssues(t *testing.T) {
 								Status: &extJira.Status{
 									Name: "In Progress",
 								},
+								Comments: &extJira.Comments{
+									Comments: []*extJira.Comment{
+										{
+											Created: "2023-01-01T12:00:00.000-0700",
+											Author: extJira.User{
+												DisplayName: "Test User",
+											},
+											Body: "This is a test comment",
+										},
+									},
+								},
+							},
+							Changelog: &extJira.Changelog{
+								Histories: []extJira.ChangelogHistory{
+									{
+										Created: "2023-01-01T10:00:00.000-0700",
+										Author: extJira.User{
+											AccountID:   "user123",
+											DisplayName: "Test User",
+										},
+										Items: []extJira.ChangelogItems{
+											{
+												Field:      "status",
+												FromString: "Open",
+												ToString:   "In Progress",
+											},
+										},
+									},
+								},
 							},
 						},
 					}, nil

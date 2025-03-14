@@ -6,6 +6,8 @@ This document provides detailed information about the query options available in
 
 The Daiv Jira plugin allows you to customize how it queries Jira for issues. These options control what issues are included in your reports, how many results are returned, and what fields are included.
 
+The plugin also intelligently filters out issues that don't have any relevant activity (comments or changes) within the specified time range, ensuring that your reports only include issues with meaningful updates.
+
 ## Output Formats
 
 The plugin supports multiple output formats for the activity report:
@@ -83,6 +85,17 @@ A comma-separated list of fields to include in the Jira API response.
 - `"summary,status"`: Only include summary and status fields
 - `"summary,description,status,priority,assignee"`: Include additional fields
 
+## JQL Date Format
+
+When constructing JQL queries, the plugin uses the date format `YYYY-MM-DD` (e.g., `2023-01-15`) without the time component. This is the format expected by Jira's JQL parser.
+
+For example, a JQL query might look like:
+```
+project = PROJECT AND updatedDate >= 2023-01-01 AND updatedDate < 2023-01-02
+```
+
+If you're customizing the JQL template, make sure to use this date format to avoid parsing errors.
+
 ## Advanced JQL Examples
 
 Here are some examples of advanced JQL templates you might want to use:
@@ -107,6 +120,16 @@ project = %s AND updatedDate >= %s AND updatedDate < %s AND priority IN (High, H
 project = %s AND updatedDate >= %s AND updatedDate < %s AND labels IN (important, urgent)
 ```
 
+## Advanced Features
+
+### Smart Filtering
+
+In addition to the JQL-based filtering, the plugin applies a smart filtering mechanism that examines each issue's comments and changelog entries. Issues that don't have any comments or changes within the specified time range are automatically filtered out, even if they match the JQL query.
+
+This ensures that your activity reports only include issues with meaningful activity during the time period you're interested in, reducing noise and making your reports more relevant.
+
+For example, if an issue was updated during your specified time range but the update was just an automated field change or a comment outside your time range, it won't be included in your report.
+
 ## Troubleshooting
 
 If you encounter errors related to JQL syntax, check that:
@@ -115,5 +138,7 @@ If you encounter errors related to JQL syntax, check that:
 2. Field names are correct for your Jira instance
 3. Values with spaces are properly quoted in JQL (e.g., `"In Progress"`)
 4. Your JQL template has the correct number of `%s` placeholders
+
+If you're not seeing issues you expect in your report, remember that the plugin filters out issues without relevant activity (comments or changes) in the specified time range. This is by design to ensure your reports only include meaningful updates.
 
 For more information on JQL syntax, refer to the [Atlassian JQL documentation](https://support.atlassian.com/jira-software-cloud/docs/advanced-search-reference-jql-fields/). 

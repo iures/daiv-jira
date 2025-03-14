@@ -85,7 +85,10 @@ func (r *JiraAPIRepository) GetIssues(timeRange TimeRange, userID string) ([]Iss
 			issue.Changes = r.processChangelog(rawIssue.Changelog.Histories, timeRange, userID)
 		}
 
-		issues = append(issues, issue)
+		// Only include issues that have comments or changes within the time range
+		if len(issue.Comments) > 0 || len(issue.Changes) > 0 {
+			issues = append(issues, issue)
+		}
 	}
 
 	return issues, nil
@@ -96,8 +99,8 @@ func (r *JiraAPIRepository) fetchUpdatedIssues(timeRange plugin.TimeRange, userI
 	// If a mock function is provided for testing, use it
 	if r.searchIssuesFunc != nil {
 		// Convert the plugin.TimeRange to string format for the JQL query
-		fromTime := timeRange.Start.Format("2006-01-02 15:04")
-		toTime := timeRange.End.Format("2006-01-02 15:04")
+		fromTime := timeRange.Start.Format("2006-01-02")
+		toTime := timeRange.End.Format("2006-01-02")
 		
 		// Build the JQL query
 		jql := r.buildJQLQuery(fromTime, toTime)
@@ -116,9 +119,9 @@ func (r *JiraAPIRepository) fetchUpdatedIssues(timeRange plugin.TimeRange, userI
 		return r.searchIssuesFunc(jql, options)
 	}
 
-	// Format time range for JQL query
-	fromTime := timeRange.Start.Format("2006-01-02 15:04")
-	toTime := timeRange.End.Format("2006-01-02 15:04")
+	// Format time range for JQL query - use only the date part without time
+	fromTime := timeRange.Start.Format("2006-01-02")
+	toTime := timeRange.End.Format("2006-01-02")
 
 	// Build the JQL query
 	jql := r.buildJQLQuery(fromTime, toTime)

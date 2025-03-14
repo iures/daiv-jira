@@ -6,6 +6,7 @@ A Jira integration plugin for the daiv CLI tool. This plugin allows you to gener
 
 - Retrieves Jira issues based on configurable query parameters
 - Filters issues by time range, status, assignee, and more
+- Intelligently filters out issues with no relevant activity in the specified time range
 - Supports multiple output formats (XML, JSON, Markdown, HTML)
 - Fully configurable JQL queries
 - Customizable field selection
@@ -83,7 +84,7 @@ After installation and configuration, the plugin will be automatically loaded wh
 daiv standup
 ```
 
-This will generate a report of your Jira activity for the default time range (usually the last 24 hours).
+This will generate a report of your Jira activity for the default time range (usually the last 24 hours). The plugin will automatically filter out issues that don't have any comments or changes within the specified time range, ensuring that only relevant activity is included in your report.
 
 ### Customizing the Time Range
 
@@ -127,4 +128,5 @@ The plugin includes several performance optimizations:
 1. **Concurrent Processing**: Issues, comments, and changelog entries are processed in parallel using goroutines, significantly improving performance for large result sets.
 2. **Smart Concurrency**: The plugin automatically switches between sequential and concurrent processing based on the size of the data to avoid overhead for small datasets.
 3. **Efficient Data Structures**: The plugin uses appropriate data structures to minimize memory usage and processing time.
+4. **Smart Filtering**: The plugin intelligently filters out issues that don't have any relevant activity (comments or changes) within the specified time range, reducing noise in your reports.
 
