@@ -2,6 +2,7 @@ package jira
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	extJira "github.com/andygrunwald/go-jira"
@@ -51,7 +52,7 @@ func (r *JiraAPIRepository) GetIssues(timeRange TimeRange, userID string) ([]Iss
 	}
 
 	// Fetch raw issues from Jira
-	rawIssues, err := r.fetchUpdatedIssues(pluginTimeRange)
+	rawIssues, err := r.fetchUpdatedIssues(pluginTimeRange, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -82,29 +83,65 @@ func (r *JiraAPIRepository) GetIssues(timeRange TimeRange, userID string) ([]Iss
 }
 
 // fetchUpdatedIssues retrieves issues from Jira based on the given time range
-func (r *JiraAPIRepository) fetchUpdatedIssues(timeRange plugin.TimeRange) ([]extJira.Issue, error) {
+func (r *JiraAPIRepository) fetchUpdatedIssues(timeRange plugin.TimeRange, userID string) ([]extJira.Issue, error) {
 	fromTime := timeRange.Start.Format("2006-01-02")
 	toTime := timeRange.End.Format("2006-01-02")
 
-	searchString := fmt.Sprintf(
-		`assignee = currentUser() AND project = %s AND status != Closed AND sprint IN openSprints() AND (updatedDate >= %s AND updatedDate < %s)`,
-		r.config.Project,
-		fromTime,
-		toTime,
-	)
+	// Build JQL query based on query options
+	jql := r.buildJQLQuery(fromTime, toTime)
 
+	// Build search options
 	opt := &extJira.SearchOptions{
-		MaxResults: 100,
-		Expand:     "changelog",
-		Fields:     []string{"summary", "description", "status", "changelog", "comment"},
+		MaxResults: r.config.QueryOptions.MaxResults,
+		Fields:     r.config.QueryOptions.Fields,
 	}
 
-	issues, _, err := r.client.Issue.Search(searchString, opt)
+	// Add changelog expansion if needed
+	if r.config.QueryOptions.ExpandChangelog {
+		opt.Expand = "changelog"
+	}
+
+	issues, _, err := r.client.Issue.Search(jql, opt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to search issues in Jira: %w", err)
 	}
 
 	return issues, nil
+}
+
+// buildJQLQuery builds a JQL query based on the query options
+func (r *JiraAPIRepository) buildJQLQuery(fromTime, toTime string) string {
+	var conditions []string
+	opts := r.config.QueryOptions
+
+	// Start with the base JQL template
+	baseQuery := fmt.Sprintf(opts.JQLTemplate, opts.Project, fromTime, toTime)
+	conditions = append(conditions, baseQuery)
+
+	// Add assignee condition if needed
+	if opts.AssigneeCurrentUser {
+		conditions = append(conditions, "assignee = currentUser()")
+	}
+
+	// Add status filter if provided
+	if opts.StatusFilter != "" {
+		// Handle special case for "!Closed" which is not valid JQL
+		if opts.StatusFilter == "!Closed" {
+			conditions = append(conditions, "status != Closed")
+		} else if opts.StatusFilter == "!= Closed" {
+			conditions = append(conditions, "status != Closed")
+		} else {
+			conditions = append(conditions, fmt.Sprintf("status %s", opts.StatusFilter))
+		}
+	}
+
+	// Add sprint condition if needed
+	if opts.InOpenSprints {
+		conditions = append(conditions, "sprint IN openSprints()")
+	}
+
+	// Join all conditions with AND
+	return strings.Join(conditions, " AND ")
 }
 
 // processComments converts external Jira comments to domain model comments

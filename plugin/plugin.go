@@ -4,6 +4,7 @@ import (
 	// Import contexts package
 	"daiv-jira/plugin/jira"
 	"fmt"
+	"strings"
 
 	plug "github.com/iures/daivplug"
 )
@@ -69,17 +70,102 @@ func (p *JiraPlugin) Manifest() *plug.PluginManifest {
 				Required:    false,
 				Secret:      false,
 			},
+			{
+				Type:        plug.ConfigTypeString,
+				Key:         "jira.query.jql_template",
+				Name:        "JQL Template",
+				Description: "The JQL template for querying issues (use %s placeholders for project, start date, and end date)",
+				Required:    false,
+				Secret:      false,
+			},
+			{
+				Type:        plug.ConfigTypeString,
+				Key:         "jira.query.assignee_current_user",
+				Name:        "Filter by Current User",
+				Description: "Whether to include only issues assigned to the current user (true/false)",
+				Required:    false,
+				Secret:      false,
+			},
+			{
+				Type:        plug.ConfigTypeString,
+				Key:         "jira.query.status_filter",
+				Name:        "Status Filter",
+				Description: "Filter issues by status using JQL syntax (e.g., '!= Closed' to exclude closed issues)",
+				Required:    false,
+				Secret:      false,
+			},
+			{
+				Type:        plug.ConfigTypeString,
+				Key:         "jira.query.in_open_sprints",
+				Name:        "In Open Sprints",
+				Description: "Whether to include only issues in open sprints (true/false)",
+				Required:    false,
+				Secret:      false,
+			},
+			{
+				Type:        plug.ConfigTypeString,
+				Key:         "jira.query.max_results",
+				Name:        "Max Results",
+				Description: "Maximum number of results to return",
+				Required:    false,
+				Secret:      false,
+			},
+			{
+				Type:        plug.ConfigTypeString,
+				Key:         "jira.query.fields",
+				Name:        "Fields",
+				Description: "Comma-separated list of fields to include in the response",
+				Required:    false,
+				Secret:      false,
+			},
 		},
 	}
 }
 
 // Initialize sets up the plugin with its configuration
 func (p *JiraPlugin) Initialize(settings map[string]interface{}) error {
+	// Create default query options
+	queryOptions := jira.DefaultQueryOptions()
+
+	// Override with user-provided options if available
+	if jqlTemplate, ok := settings["jira.query.jql_template"].(string); ok && jqlTemplate != "" {
+		queryOptions.JQLTemplate = jqlTemplate
+	}
+
+	if assigneeCurrentUserStr, ok := settings["jira.query.assignee_current_user"].(string); ok && assigneeCurrentUserStr != "" {
+		queryOptions.AssigneeCurrentUser = assigneeCurrentUserStr == "true"
+	}
+
+	if statusFilter, ok := settings["jira.query.status_filter"].(string); ok && statusFilter != "" {
+		queryOptions.StatusFilter = statusFilter
+	}
+
+	if inOpenSprintsStr, ok := settings["jira.query.in_open_sprints"].(string); ok && inOpenSprintsStr != "" {
+		queryOptions.InOpenSprints = inOpenSprintsStr == "true"
+	}
+
+	if maxResultsStr, ok := settings["jira.query.max_results"].(string); ok && maxResultsStr != "" {
+		var maxResults int
+		if _, err := fmt.Sscanf(maxResultsStr, "%d", &maxResults); err == nil && maxResults > 0 {
+			queryOptions.MaxResults = maxResults
+		}
+	}
+
+	if fieldsStr, ok := settings["jira.query.fields"].(string); ok && fieldsStr != "" {
+		queryOptions.Fields = strings.Split(fieldsStr, ",")
+		// Trim whitespace from each field
+		for i, field := range queryOptions.Fields {
+			queryOptions.Fields[i] = strings.TrimSpace(field)
+		}
+	}
+
+	// Create the config
 	config := &jira.JiraConfig{
-		Username: settings["jira.username"].(string),
-		Token:    settings["jira.token"].(string),
-		URL:      settings["jira.url"].(string),
-		Project:  settings["jira.project"].(string),
+		Username:     settings["jira.username"].(string),
+		Token:        settings["jira.token"].(string),
+		URL:          settings["jira.url"].(string),
+		Project:      settings["jira.project"].(string),
+		QueryOptions: queryOptions,
 	}
 
 	client, err := jira.NewJiraClient(config)

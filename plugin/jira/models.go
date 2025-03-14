@@ -55,4 +55,44 @@ type Change struct {
 	Field     string
 	FromValue string
 	ToValue   string
+}
+
+// QueryOptions represents configurable options for Jira queries
+type QueryOptions struct {
+	// JQL template with placeholders for dynamic values
+	JQLTemplate string
+	
+	// Whether to include only issues assigned to the current user
+	AssigneeCurrentUser bool
+	
+	// Project key to filter issues by
+	Project string
+	
+	// Status filter (e.g., "!= Closed" to exclude closed issues)
+	StatusFilter string
+	
+	// Whether to include only issues in open sprints
+	InOpenSprints bool
+	
+	// Maximum number of results to return
+	MaxResults int
+	
+	// Fields to include in the response
+	Fields []string
+	
+	// Whether to expand changelog in the response
+	ExpandChangelog bool
+}
+
+// DefaultQueryOptions returns the default query options
+func DefaultQueryOptions() QueryOptions {
+	return QueryOptions{
+		JQLTemplate:       "project = %s AND updatedDate >= %s AND updatedDate < %s",
+		AssigneeCurrentUser: true,
+		StatusFilter:      "!= Closed",
+		InOpenSprints:     true,
+		MaxResults:        100,
+		Fields:            []string{"summary", "description", "status", "changelog", "comment"},
+		ExpandChangelog:   true,
+	}
 } 

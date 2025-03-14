@@ -12,6 +12,7 @@ type JiraConfig struct {
 	Token    string
 	URL      string
 	Project  string
+	QueryOptions QueryOptions
 }
 
 // JiraClient provides a client for interacting with Jira
@@ -31,6 +32,11 @@ func NewJiraClient(config *JiraConfig) (*JiraClient, error) {
 	client, err := extJira.NewClient(tp.Client(), config.URL)
 	if err != nil {
 		return nil, err
+	}
+
+	// Set project in query options if not already set
+	if config.QueryOptions.Project == "" {
+		config.QueryOptions.Project = config.Project
 	}
 
 	jiraClient := &JiraClient{
