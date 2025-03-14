@@ -6,6 +6,17 @@ This document provides detailed information about the query options available in
 
 The Daiv Jira plugin allows you to customize how it queries Jira for issues. These options control what issues are included in your reports, how many results are returned, and what fields are included.
 
+## Output Formats
+
+The plugin supports multiple output formats for the activity report:
+
+- **JSON**: A structured JSON format suitable for programmatic processing
+- **XML**: An XML format for integration with XML-based systems
+- **Markdown**: A human-readable format suitable for display in text editors and chat systems
+- **HTML**: A rich HTML format with styling for viewing in web browsers
+
+You can set the output format using the `jira.format` configuration option.
+
 ## Configuration Options
 
 ### JQL Template (`jira.query.jql_template`)

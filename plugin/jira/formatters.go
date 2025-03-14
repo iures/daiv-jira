@@ -283,6 +283,118 @@ func (f *MarkdownFormatter) Format(report *ActivityReport) (*FormattedContent, e
 	}, nil
 }
 
+// HTMLFormatter formats activity reports as HTML
+type HTMLFormatter struct{}
+
+// NewHTMLFormatter creates a new HTML formatter
+func NewHTMLFormatter() *HTMLFormatter {
+	return &HTMLFormatter{}
+}
+
+// Name returns the name of the formatter
+func (f *HTMLFormatter) Name() string {
+	return "html"
+}
+
+// Format formats an activity report as HTML
+func (f *HTMLFormatter) Format(report *ActivityReport) (*FormattedContent, error) {
+	if len(report.Issues) == 0 {
+		return &FormattedContent{
+			ContentType: "text/html",
+			Content:     "<html><body><h1>Jira Activity Report</h1><p>No activity found for the specified time range.</p></body></html>",
+		}, nil
+	}
+
+	var sb strings.Builder
+
+	// Start HTML document
+	sb.WriteString("<!DOCTYPE html>\n<html>\n<head>\n")
+	sb.WriteString("<title>Jira Activity Report</title>\n")
+	sb.WriteString("<style>\n")
+	sb.WriteString("body { font-family: Arial, sans-serif; margin: 20px; }\n")
+	sb.WriteString("h1 { color: #0052CC; }\n") // Jira blue
+	sb.WriteString("h2 { color: #172B4D; border-bottom: 1px solid #DFE1E6; padding-bottom: 8px; }\n")
+	sb.WriteString("h3 { margin-top: 20px; }\n")
+	sb.WriteString(".issue { background-color: #F4F5F7; border-radius: 3px; padding: 15px; margin-bottom: 15px; }\n")
+	sb.WriteString(".issue-key { color: #0052CC; font-weight: bold; }\n")
+	sb.WriteString(".issue-summary { font-size: 16px; margin-bottom: 10px; }\n")
+	sb.WriteString(".metadata { color: #6B778C; font-size: 14px; margin-bottom: 15px; }\n")
+	sb.WriteString(".changes, .comments { margin-top: 10px; }\n")
+	sb.WriteString(".change, .comment { background-color: white; border: 1px solid #DFE1E6; padding: 10px; margin-bottom: 8px; }\n")
+	sb.WriteString(".author { color: #0052CC; font-weight: bold; }\n")
+	sb.WriteString(".timestamp { color: #6B778C; font-size: 12px; }\n")
+	sb.WriteString("</style>\n")
+	sb.WriteString("</head>\n<body>\n")
+
+	// Add report header
+	sb.WriteString("<h1>Jira Activity Report</h1>\n")
+	sb.WriteString("<div class=\"metadata\">\n")
+	sb.WriteString(fmt.Sprintf("<p><strong>Time Range:</strong> %s to %s</p>\n", 
+		report.TimeRange.Start.Format("2006-01-02"),
+		report.TimeRange.End.Format("2006-01-02")))
+	sb.WriteString(fmt.Sprintf("<p><strong>User:</strong> %s (%s)</p>\n", 
+		report.User.DisplayName, 
+		report.User.Email))
+	sb.WriteString("</div>\n")
+	
+	// Group issues by status
+	statusGroups := make(map[string][]Issue)
+	for _, issue := range report.Issues {
+		statusGroups[issue.Status] = append(statusGroups[issue.Status], issue)
+	}
+
+	// Add issues by status
+	for status, issues := range statusGroups {
+		sb.WriteString(fmt.Sprintf("<h2>%s Issues</h2>\n", status))
+		
+		for _, issue := range issues {
+			sb.WriteString("<div class=\"issue\">\n")
+			sb.WriteString(fmt.Sprintf("<h3><span class=\"issue-key\">[%s]</span> <span class=\"issue-summary\">%s</span></h3>\n", 
+				issue.Key, issue.Summary))
+			
+			// Add changes section if there are any
+			if len(issue.Changes) > 0 {
+				sb.WriteString("<div class=\"changes\">\n")
+				sb.WriteString("<h4>Changes</h4>\n")
+				for _, change := range issue.Changes {
+					sb.WriteString("<div class=\"change\">\n")
+					sb.WriteString(fmt.Sprintf("<p><span class=\"author\">%s</span> changed <strong>%s</strong> from \"%s\" to \"%s\"</p>\n", 
+						change.Author, change.Field, change.FromValue, change.ToValue))
+					sb.WriteString(fmt.Sprintf("<p class=\"timestamp\">%s</p>\n", 
+						change.Timestamp.Format("2006-01-02 15:04:05")))
+					sb.WriteString("</div>\n")
+				}
+				sb.WriteString("</div>\n")
+			}
+			
+			// Add comments section if there are any
+			if len(issue.Comments) > 0 {
+				sb.WriteString("<div class=\"comments\">\n")
+				sb.WriteString("<h4>Comments</h4>\n")
+				for _, comment := range issue.Comments {
+					sb.WriteString("<div class=\"comment\">\n")
+					sb.WriteString(fmt.Sprintf("<p><span class=\"author\">%s</span></p>\n", comment.Author))
+					sb.WriteString(fmt.Sprintf("<p>%s</p>\n", comment.Content))
+					sb.WriteString(fmt.Sprintf("<p class=\"timestamp\">%s</p>\n", 
+						comment.Timestamp.Format("2006-01-02 15:04:05")))
+					sb.WriteString("</div>\n")
+				}
+				sb.WriteString("</div>\n")
+			}
+			
+			sb.WriteString("</div>\n")
+		}
+	}
+	
+	// Close HTML document
+	sb.WriteString("</body>\n</html>")
+
+	return &FormattedContent{
+		ContentType: "text/html",
+		Content:     sb.String(),
+	}, nil
+}
+
 // XML structures for proper marshaling
 type jiraXMLReport struct {
 	XMLName xml.Name   `xml:"jira_report"`

@@ -66,7 +66,7 @@ func (p *JiraPlugin) Manifest() *plug.PluginManifest {
 				Type:        plug.ConfigTypeString,
 				Key:         "jira.format",
 				Name:        "Report Format",
-				Description: "The format for the activity report (xml, json, or markdown)",
+				Description: "The format for the activity report (xml, json, markdown, or html)",
 				Required:    false,
 				Secret:      false,
 			},
@@ -192,6 +192,8 @@ func (p *JiraPlugin) Initialize(settings map[string]interface{}) error {
 		p.formatter = jira.NewMarkdownFormatter()
 	case "xml":
 		p.formatter = jira.NewXMLFormatter()
+	case "html":
+		p.formatter = jira.NewHTMLFormatter()
 	default:
 		p.formatter = jira.NewJSONFormatter()
 	}

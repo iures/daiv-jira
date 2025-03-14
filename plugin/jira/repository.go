@@ -19,6 +19,10 @@ type JiraRepository interface {
 type JiraAPIRepository struct {
 	client *extJira.Client
 	config *JiraConfig
+	
+	// For testing purposes
+	getUserFunc func() (*User, error)
+	searchIssuesFunc func(jql string, options *extJira.SearchOptions) ([]extJira.Issue, error)
 }
 
 // NewJiraAPIRepository creates a new JiraAPIRepository
@@ -31,6 +35,11 @@ func NewJiraAPIRepository(client *extJira.Client, config *JiraConfig) *JiraAPIRe
 
 // GetUser retrieves the current user from Jira
 func (r *JiraAPIRepository) GetUser() (*User, error) {
+	// If a mock function is provided for testing, use it
+	if r.getUserFunc != nil {
+		return r.getUserFunc()
+	}
+	
 	user, _, err := r.client.User.GetSelf()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user from Jira: %w", err)
@@ -82,26 +91,51 @@ func (r *JiraAPIRepository) GetIssues(timeRange TimeRange, userID string) ([]Iss
 	return issues, nil
 }
 
-// fetchUpdatedIssues retrieves issues from Jira based on the given time range
+// fetchUpdatedIssues retrieves issues from Jira based on the given time range and user ID
 func (r *JiraAPIRepository) fetchUpdatedIssues(timeRange plugin.TimeRange, userID string) ([]extJira.Issue, error) {
-	fromTime := timeRange.Start.Format("2006-01-02")
-	toTime := timeRange.End.Format("2006-01-02")
+	// If a mock function is provided for testing, use it
+	if r.searchIssuesFunc != nil {
+		// Convert the plugin.TimeRange to string format for the JQL query
+		fromTime := timeRange.Start.Format("2006-01-02 15:04")
+		toTime := timeRange.End.Format("2006-01-02 15:04")
+		
+		// Build the JQL query
+		jql := r.buildJQLQuery(fromTime, toTime)
+		
+		// Create search options
+		options := &extJira.SearchOptions{
+			MaxResults: r.config.QueryOptions.MaxResults,
+			Fields:     r.config.QueryOptions.Fields,
+		}
+		
+		// If changelog should be expanded, add it to the expand options
+		if r.config.QueryOptions.ExpandChangelog {
+			options.Expand = "changelog"
+		}
+		
+		return r.searchIssuesFunc(jql, options)
+	}
 
-	// Build JQL query based on query options
+	// Format time range for JQL query
+	fromTime := timeRange.Start.Format("2006-01-02 15:04")
+	toTime := timeRange.End.Format("2006-01-02 15:04")
+
+	// Build the JQL query
 	jql := r.buildJQLQuery(fromTime, toTime)
 
-	// Build search options
-	opt := &extJira.SearchOptions{
+	// Create search options
+	options := &extJira.SearchOptions{
 		MaxResults: r.config.QueryOptions.MaxResults,
 		Fields:     r.config.QueryOptions.Fields,
 	}
 
-	// Add changelog expansion if needed
+	// If changelog should be expanded, add it to the expand options
 	if r.config.QueryOptions.ExpandChangelog {
-		opt.Expand = "changelog"
+		options.Expand = "changelog"
 	}
 
-	issues, _, err := r.client.Issue.Search(jql, opt)
+	// Search for issues
+	issues, _, err := r.client.Issue.Search(jql, options)
 	if err != nil {
 		return nil, fmt.Errorf("failed to search issues in Jira: %w", err)
 	}

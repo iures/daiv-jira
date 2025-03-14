@@ -6,7 +6,7 @@ A Jira integration plugin for the daiv CLI tool. This plugin allows you to gener
 
 - Retrieves Jira issues based on configurable query parameters
 - Filters issues by time range, status, assignee, and more
-- Supports multiple output formats (XML, JSON, Markdown)
+- Supports multiple output formats (XML, JSON, Markdown, HTML)
 - Fully configurable JQL queries
 - Customizable field selection
 
@@ -62,7 +62,7 @@ This plugin requires the following configuration:
 
 ### Optional Settings
 
-- **jira.format**: Output format (xml, json, or markdown)
+- **jira.format**: Output format (xml, json, markdown, or html)
 - **jira.query.jql_template**: Custom JQL template with placeholders for project, start date, and end date
 - **jira.query.assignee_current_user**: Whether to include only issues assigned to the current user (true/false)
 - **jira.query.status_filter**: Filter issues by status using JQL syntax (e.g., '!= Closed' to exclude closed issues)

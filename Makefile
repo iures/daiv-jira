@@ -14,3 +14,6 @@ tidy: clean
 clean:
 	rm -f ./out/$(PLUGIN_NAME).so
 	rm -f ~/.daiv/plugins/$(PLUGIN_NAME).so
+
+test:
+	go test -v ./...
